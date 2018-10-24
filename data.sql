@@ -1,11 +1,8 @@
 CREATE TABLE books
 (
-  isbn TEXT PRIMARY KEY,
-  amazon_url TEXT,
-  author TEXT,
-  language TEXT,
-  pages INTEGER,
-  publisher TEXT,
-  title TEXT,
-  year INTEGER
+  handle TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  num_employees INTEGER,
+  description TEXT,
+  logo_url TEXT
 );
