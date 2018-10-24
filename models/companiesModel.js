@@ -3,10 +3,21 @@ const db = require('../db');
 /** Collection of related methods for companies. */
 
 class Company {
+  static _404Error(results) {
+    if (results.rows.length === 0) {
+      let error = new Error(`Company does not exist.`);
+      error.status = 404;
+      throw error;
+    }
+  }
+
   /** given query strings, return list of companies from database that fulfill requirements */
   static async filterAll({ search, min_employees, max_employees }) {
     const BASE_QUERY = `SELECT handle,
-                               name
+                               name,
+                               num_employees,
+                               description,
+                               logo_url
                         FROM companies`;
 
     let whereQuery = '';
@@ -51,6 +62,38 @@ class Company {
     const companiesResult = await db.query(finalQuery, columns);
 
     return companiesResult.rows;
+  }
+
+  static async create({ handle, name, num_employees, description, logo_url }) {
+    const result = await db.query(
+      `INSERT INTO companies (
+            handle,
+            name,
+            num_employees,
+            description,
+            logo_url) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING handle,
+         name,
+         num_employees,
+         description,
+         logo_url`,
+      [handle, name, num_employees, description, logo_url]
+    );
+    return result.rows[0];
+  }
+
+  static async getOne(handle) {
+    const result = await db.query(
+      `SELECT handle,
+              name
+        FROM companies
+        WHERE handle = $1
+      `,
+      [handle]
+    );
+    this._404Error(result);
+    return result.rows[0];
   }
 }
 
