@@ -79,7 +79,7 @@ class Company {
     return companiesResult.rows;
   }
 
-  // Create method to insert new company into database and return inserted company name and handle
+  // Create method to insert new company into database and return inserted company data
   // {
   //   "handle": "NFLX"
   //   "name": "Netflix",
@@ -90,7 +90,10 @@ class Company {
   // =>
   // {
   //   "handle": "NFLX"
-  //   "name": "Netflix"
+  //   "name": "Netflix",
+  //   "num_employees": 5000,
+  //   "description": "Media-streaming company",
+  //   "logo_url": "http://netflix.com"
   // }
   static async create({ handle, name, num_employees, description, logo_url }) {
     const result = await db.query(
