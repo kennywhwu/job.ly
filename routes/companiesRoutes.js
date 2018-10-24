@@ -37,12 +37,6 @@ router.post('/', async function(req, res, next) {
   try {
     const validateResult = validate(req.body, companyCreationSchema);
     validateInputs(validateResult, next);
-    // if (!validateResult.valid) {
-    //   let error = {};
-    //   error.message = validateResult.errors.map(error => error.stack);
-    //   error.status = 400;
-    //   return next(error);
-    // }
     let result = await Company.create(req.body);
     return res.json({ company: result });
   } catch (error) {
@@ -64,13 +58,7 @@ router.get('/:handle', async function(req, res, next) {
 router.patch('/:handle', async function(req, res, next) {
   try {
     const validateResult = validate(req.body, companyUpdateSchema);
-    if (!validateResult.valid) {
-      let error = {};
-      // throwAPIError(validateResult.errors.map(error => error.stack), 400)
-      error.message = validateResult.errors.map(error => error.stack);
-      error.status = 400;
-      return next(error);
-    }
+    validateInputs(validateResult, next);
     let result = await Company.update(req.params.handle, req.body);
     return res.json({ company: result });
   } catch (error) {

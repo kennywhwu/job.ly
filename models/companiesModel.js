@@ -65,12 +65,7 @@ class Company {
     }
 
     // Combine the query strings for filtering in SQL WHERE clause
-    let filterJoinString = '';
-    for (let i = 0; i < queryArray.length; i++) {
-      filterJoinString += queryArray[i] + ' AND '; // queryArray.join(" AND ")
-    }
-    // Trim last ' and ' component
-    const filterQuery = filterJoinString.slice(0, filterJoinString.length - 5);
+    let filterQuery = queryArray.join(' AND ');
     // Combine all query parts
     const finalQuery = BASE_QUERY + whereQuery + filterQuery + ORDER_QUERY;
     return { query: finalQuery, columns };
