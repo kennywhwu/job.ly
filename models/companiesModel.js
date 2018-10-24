@@ -4,22 +4,36 @@ const partialUpdate = require('../helpers/partialUpdate');
 /** Collection of related methods for companies. */
 
 class Company {
-  static _404Error(results) {
+  // General error handler if identifying company that doesn't exist in database
+  static _404_errorIfNotFound(results) {
     if (results.rows.length === 0) {
-      let error = new Error(`Company does not exist.`);
+      let error = new Error(`Company does not exist`);
       error.status = 404;
       throw error;
     }
   }
 
-  /** given query strings, return list of companies from database that fulfill requirements */
-  static async filterAll({ search, min_employees, max_employees }) {
-    const BASE_QUERY = `SELECT handle,
-                               name
-                        FROM companies`;
+  static _404_errorIfUndefined(results) {
+    if (!results) {
+      let error = new Error(`Companies not returned`);
+      error.status = 404;
+      throw error;
+    }
+  }
+  // let company = results.rows[0];
+  // _404_ifUndef(company);
+
+  // static _404_ifUndef(obj) {
+  //   if (!obj)
+  // }
+
+  // Build out SQL query depending on which query string parameters are passed in
+  static _buildQuery({ search, min_employees, max_employees }) {
+    const BASE_QUERY = 'SELECT handle, name FROM companies';
+    const ORDER_QUERY = ' ORDER BY handle';
 
     let whereQuery = '';
-    let searchQuery = '';
+    // let searchQuery = '';
     let minQuery = '';
     let maxQuery = '';
 
@@ -27,11 +41,12 @@ class Company {
     let columns = [];
     let queryArray = [];
 
+    // Set query parts depending on which were fed into function
     if (search || min_employees || max_employees) {
       whereQuery = ' WHERE ';
     }
     if (search) {
-      searchQuery = `name ILIKE $${idx}`;
+      let searchQuery = `name ILIKE $${idx}`;
       idx++;
       columns.push(`%${search}%`);
       queryArray.push(searchQuery);
@@ -49,16 +64,23 @@ class Company {
       queryArray.push(maxQuery);
     }
 
+    // Combine the query strings for filtering in SQL WHERE clause
     let filterJoinString = '';
     for (let i = 0; i < queryArray.length; i++) {
-      filterJoinString += queryArray[i] + ' and ';
+      filterJoinString += queryArray[i] + ' AND '; // queryArray.join(" AND ")
     }
-
+    // Trim last ' and ' component
     const filterQuery = filterJoinString.slice(0, filterJoinString.length - 5);
-    const finalQuery = BASE_QUERY + whereQuery + filterQuery;
+    // Combine all query parts
+    const finalQuery = BASE_QUERY + whereQuery + filterQuery + ORDER_QUERY;
+    return { query: finalQuery, columns };
+  }
 
-    const companiesResult = await db.query(finalQuery, columns);
-
+  /** given query strings, return list of companies from database that fulfill requirements */
+  static async filterAndListCompanies(queryObject) {
+    const { query, columns } = this._buildQuery(queryObject);
+    const companiesResult = await db.query(query, columns);
+    this._404_errorIfUndefined(companiesResult);
     return companiesResult.rows;
   }
 
@@ -91,6 +113,7 @@ class Company {
          logo_url`,
       [handle, name, num_employees, description, logo_url]
     );
+    this._404_errorIfUndefined(result);
     return result.rows[0];
   }
 
@@ -110,7 +133,7 @@ class Company {
       `,
       [handle]
     );
-    this._404Error(result);
+    this._404_errorIfNotFound(result);
     return result.rows[0];
   }
 
@@ -137,7 +160,7 @@ class Company {
       handle
     );
     const result = await db.query(query, values);
-    this._404Error(result);
+    this._404_errorIfNotFound(result);
     return result.rows[0];
   }
 
@@ -152,7 +175,7 @@ class Company {
       `,
       [handle]
     );
-    this._404Error(result);
+    this._404_errorIfNotFound(result);
     return;
   }
 }
