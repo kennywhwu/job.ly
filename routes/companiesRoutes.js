@@ -6,6 +6,7 @@ const router = new express.Router();
 const Company = require('../models/companiesModel');
 const { validate } = require('jsonschema');
 const companyCreationSchema = require('../schemas/companyCreationSchema.json');
+const companyUpdateSchema = require('../schemas/companyUpdateSchema.json');
 
 // GET route for companies
 router.get('/', async function(req, res, next) {
@@ -41,11 +42,38 @@ router.post('/', async function(req, res, next) {
   }
 });
 
-// GET route for specific company by handle
+// GET route to retrieve specific company by handle
 router.get('/:handle', async function(req, res, next) {
   try {
     let result = await Company.getOne(req.params.handle);
     return res.json({ company: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH route to update specific company by handle
+router.patch('/:handle', async function(req, res, next) {
+  try {
+    const validateResult = validate(req.body, companyUpdateSchema);
+    if (!validateResult.valid) {
+      let error = {};
+      error.message = result.errors.map(error => error.stack);
+      error.status = 400;
+      return next(error);
+    }
+    let result = await Company.update(req.params.handle, req.body);
+    return res.json({ company: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE route to delete specific company by handle
+router.delete('/:handle', async function(req, res, next) {
+  try {
+    await Company.delete(req.params.handle);
+    return res.json({ message: 'Company deleted! :(' });
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,5 @@
 const db = require('../db');
+const partialUpdate = require('../helpers/partialUpdate');
 
 /** Collection of related methods for companies. */
 
@@ -14,10 +15,7 @@ class Company {
   /** given query strings, return list of companies from database that fulfill requirements */
   static async filterAll({ search, min_employees, max_employees }) {
     const BASE_QUERY = `SELECT handle,
-                               name,
-                               num_employees,
-                               description,
-                               logo_url
+                               name
                         FROM companies`;
 
     let whereQuery = '';
@@ -64,6 +62,19 @@ class Company {
     return companiesResult.rows;
   }
 
+  // Create method to insert new company into database and return inserted company name and handle
+  // {
+  //   "handle": "NFLX"
+  //   "name": "Netflix",
+  //   "num_employees": 5000,
+  //   "description": "Media-streaming company",
+  //   "logo_url": "http://netflix.com"
+  // }
+  // =>
+  // {
+  //   "handle": "NFLX"
+  //   "name": "Netflix"
+  // }
   static async create({ handle, name, num_employees, description, logo_url }) {
     const result = await db.query(
       `INSERT INTO companies (
@@ -83,6 +94,13 @@ class Company {
     return result.rows[0];
   }
 
+  // Retrieve company from database by handle
+  // 'NFLX'
+  // =>
+  // {
+  //   "handle": "NFLX"
+  //   "name": "Netflix"
+  // }
   static async getOne(handle) {
     const result = await db.query(
       `SELECT handle,
@@ -94,6 +112,48 @@ class Company {
     );
     this._404Error(result);
     return result.rows[0];
+  }
+
+  // Update company information by handle in database, only for columns specified
+  // ('NFLX',
+  // {
+  //   "name": "Netflix",
+  //   "num_employees": 4000,
+  //   "description": "Media-streaming company",
+  //   "logo_url": "http://netflix.com"
+  // }
+  // =>
+  // {
+  //   "name": "Netflix",
+  //   "num_employees": 4000,
+  //   "description": "Media-streaming company",
+  //   "logo_url": "http://netflix.com"
+  // }
+  static async update(handle, items) {
+    const { query, values } = partialUpdate(
+      'companies',
+      items,
+      'handle',
+      handle
+    );
+    const result = await db.query(query, values);
+    this._404Error(result);
+    return result.rows[0];
+  }
+
+  // Delete company by handle from database
+  // 'NFLX' => don't return anything
+  static async delete(handle) {
+    const result = await db.query(
+      `DELETE
+        FROM companies
+        WHERE handle = $1
+        RETURNING handle
+      `,
+      [handle]
+    );
+    this._404Error(result);
+    return;
   }
 }
 
