@@ -1,4 +1,4 @@
-CREATE TABLE books
+CREATE TABLE companies
 (
   handle TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -6,3 +6,6 @@ CREATE TABLE books
   description TEXT,
   logo_url TEXT
 );
+
+
+
