@@ -1,4 +1,4 @@
-const partialUpdate = require('.../helpers/partialUpdate');
+const partialUpdate = require('../../helpers/partialUpdate');
 
 describe('partialUpdate()', () => {
   it('should generate a proper partial update query with just 1 field', function() {
@@ -13,7 +13,7 @@ describe('partialUpdate()', () => {
       )
     ).toEqual({
       query:
-        'UPDATE companies SET description = $1, logo_url = $2 WHERE handle=$3 RETURNING *',
+        'UPDATE companies SET description=$1, logo_url=$2 WHERE handle=$3 RETURNING *',
       values: ['Doing great!', 'http://netflix.com', 'NFLX']
     });
   });
