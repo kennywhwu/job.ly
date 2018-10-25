@@ -24,15 +24,40 @@ router.post('/', async function(req, res, next) {
 // GET route for jobs
 router.get('/', async function(req, res, next) {
   try {
-    if (+req.query.min_employees > +req.query.max_employees) {
-      let error = new Error(
-        'Min employees must be less than or equal to max employees'
-      );
-      error.status = 400;
-      throw error;
-    }
-    let result = await Company.filterAndListjobs(req.query);
-    return res.json({ companies: result });
+    let result = await Job.filterAndListJobs(req.query);
+    return res.json({ jobs: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET route to retrieve specific job by id
+router.get('/:id', async function(req, res, next) {
+  try {
+    let result = await Job.getOne(req.params.id);
+    return res.json({ job: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH route to update specific job by id
+router.patch('/:id', async function(req, res, next) {
+  try {
+    const validateResult = validate(req.body, jobUpdateSchema);
+    validateInputs(validateResult, next);
+    let result = await Job.update(req.params.id, req.body);
+    return res.json({ job: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE route to delete specific job by id
+router.delete('/:id', async function(req, res, next) {
+  try {
+    await Job.delete(req.params.id);
+    return res.json({ message: 'Job deleted! :(' });
   } catch (error) {
     next(error);
   }
