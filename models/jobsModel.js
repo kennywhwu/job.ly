@@ -13,18 +13,9 @@ class Job {
     }
   }
 
-  // Error handler if cannot return any general selection (query result is undefined)
-  static _404_errorIfUndefined(results) {
-    if (!results) {
-      let error = new Error(`Jobs not returned`);
-      error.status = 404;
-      throw error;
-    }
-  }
-
   // Build out SQL query depending on which query string parameters are passed in
   static _buildQuery({ search, min_salary, min_equity }) {
-    const BASE_QUERY = 'SELECT id,title, company_handle FROM jobs';
+    const BASE_QUERY = 'SELECT title, company_handle FROM jobs';
     const ORDER_QUERY = ' ORDER BY title';
 
     let whereQuery = '';
@@ -67,7 +58,7 @@ class Job {
   static async filterAndListJobs(queryObject) {
     const { query, columns } = this._buildQuery(queryObject);
     const jobResult = await db.query(query, columns);
-    this._404_errorIfUndefined(jobResult);
+    this._404_errorIfNotFound(jobResult);
     return jobResult.rows;
   }
 
@@ -101,7 +92,6 @@ class Job {
          date_posted`,
       [title, salary, equity, company_handle]
     );
-    this._404_errorIfUndefined(result);
     return result.rows[0];
   }
 

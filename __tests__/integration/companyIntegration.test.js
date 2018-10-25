@@ -9,6 +9,7 @@ const Company = require('../../models/companiesModel');
 
 beforeEach(async function() {
   // seed with some data
+  await db.query('DELETE FROM companies');
   await db.query(
     `INSERT INTO companies 
       (handle,
@@ -119,91 +120,91 @@ describe('POST /companies', function() {
     ]);
     expect(invalidCompany.statusCode).toBe(400);
   });
+});
 
-  // Test GET request to /companies/:handle
-  describe('GET /companies/:handle', function() {
-    // Test retrieving company info with valid handle
-    test('Retrieve company name and handle by valid handle', async function() {
-      const specificCompany = await request(app).get('/companies/NFLX');
-
-      // Validate company name and status code are expected
-      expect(specificCompany.body.company.name).toBe('Netflix');
-      expect(specificCompany.statusCode).toBe(200);
-    });
-
-    // Test retrieving company with invalid handle
-    test('Returns error if retrieve company by nonexisting handle', async function() {
-      const invalidCompany = await request(app).get('/companies/AAPL');
-
-      // Validate error message and status code
-      expect(invalidCompany.body.message).toBe('Company does not exist');
-      expect(invalidCompany.statusCode).toBe(404);
-    });
+// Test GET request to /companies/:handle
+describe('GET /companies/:handle', function() {
+  // Test retrieving company info with valid handle
+  test('Retrieve company name and handle by valid handle', async function() {
+    const specificCompany = await request(app).get('/companies/GOOG');
+    console.log(specificCompany.body);
+    // Validate company name and status code are expected
+    expect(specificCompany.body.company.name).toBe('Google');
+    expect(specificCompany.statusCode).toBe(200);
   });
 
-  // Test PATCH request to /companies/:handle
-  describe('PATCH /companies/:handle', function() {
-    // Test updating company with valid handle
-    test('Update company information by valid handle', async function() {
-      const updatedCompany = await request(app)
-        .patch('/companies/NFLX')
-        .send({
-          num_employees: 8000
-        });
+  // Test retrieving company with invalid handle
+  test('Returns error if retrieve company by nonexisting handle', async function() {
+    const invalidCompany = await request(app).get('/companies/AAPL');
 
-      // Validate company name remains same, updated field is updated,and status code are expected
-      expect(updatedCompany.body.company.name).toBe('Netflix');
-      expect(updatedCompany.body.company.num_employees).toBe(8000);
-      expect(updatedCompany.statusCode).toBe(200);
-    });
+    // Validate error message and status code
+    expect(invalidCompany.body.message).toBe('Company does not exist');
+    expect(invalidCompany.statusCode).toBe(404);
+  });
+});
 
-    // Test updating company with invalid handle
-    test('Returns error if update company with nonexisting handle', async function() {
-      const invalidCompany = await request(app)
-        .patch('/companies/AAPL')
-        .send({
-          num_employees: 8000
-        });
+// Test PATCH request to /companies/:handle
+describe('PATCH /companies/:handle', function() {
+  // Test updating company with valid handle
+  test('Update company information by valid handle', async function() {
+    const updatedCompany = await request(app)
+      .patch('/companies/NFLX')
+      .send({
+        num_employees: 8000
+      });
 
-      // Validate error message and status code
-      expect(invalidCompany.body.message).toBe('Company does not exist');
-      expect(invalidCompany.statusCode).toBe(404);
-    });
-
-    // Test updating company with invalid inputs
-    test('Returns error if update existing company with invalid inputs', async function() {
-      const invalidCompany = await request(app)
-        .patch('/companies/NFLX')
-        .send({
-          num_employees: '8000'
-        });
-
-      // Validate error message and status code
-      expect(invalidCompany.body.message).toEqual([
-        'instance.num_employees is not of a type(s) integer'
-      ]);
-      expect(invalidCompany.statusCode).toBe(400);
-    });
+    // Validate company name remains same, updated field is updated,and status code are expected
+    expect(updatedCompany.body.company.name).toBe('Netflix');
+    expect(updatedCompany.body.company.num_employees).toBe(8000);
+    expect(updatedCompany.statusCode).toBe(200);
   });
 
-  // Test DELETE request to /companies/:handle
-  describe('DELETE /companies/:handle', function() {
-    // Test deleting company with valid handle
-    test('Delete company with valid handle', async function() {
-      const deletedCompany = await request(app).delete('/companies/NFLX');
+  // Test updating company with invalid handle
+  test('Returns error if update company with nonexisting handle', async function() {
+    const invalidCompany = await request(app)
+      .patch('/companies/AAPL')
+      .send({
+        num_employees: 8000
+      });
 
-      // Validate delete message and status code
-      expect(deletedCompany.body.message).toBe('Company deleted! :(');
-      expect(deletedCompany.statusCode).toBe(200);
-    });
+    // Validate error message and status code
+    expect(invalidCompany.body.message).toBe('Company does not exist');
+    expect(invalidCompany.statusCode).toBe(404);
+  });
 
-    // Test deleting company with invalid handle
-    test('Returns error if delete company with nonexistent handle', async function() {
-      const invalidCompany = await request(app).delete('/companies/AAPL');
+  // Test updating company with invalid inputs
+  test('Returns error if update existing company with invalid inputs', async function() {
+    const invalidCompany = await request(app)
+      .patch('/companies/NFLX')
+      .send({
+        num_employees: '8000'
+      });
 
-      // Validate error message
-      expect(invalidCompany.body.message).toBe('Company does not exist');
-      expect(invalidCompany.statusCode).toBe(404);
-    });
+    // Validate error message and status code
+    expect(invalidCompany.body.message).toEqual([
+      'instance.num_employees is not of a type(s) integer'
+    ]);
+    expect(invalidCompany.statusCode).toBe(400);
+  });
+});
+
+// Test DELETE request to /companies/:handle
+describe('DELETE /companies/:handle', function() {
+  // Test deleting company with valid handle
+  test('Delete company with valid handle', async function() {
+    const deletedCompany = await request(app).delete('/companies/NFLX');
+
+    // Validate delete message and status code
+    expect(deletedCompany.body.message).toBe('Company deleted! :(');
+    expect(deletedCompany.statusCode).toBe(200);
+  });
+
+  // Test deleting company with invalid handle
+  test('Returns error if delete company with nonexistent handle', async function() {
+    const invalidCompany = await request(app).delete('/companies/AAPL');
+
+    // Validate error message
+    expect(invalidCompany.body.message).toBe('Company does not exist');
+    expect(invalidCompany.statusCode).toBe(404);
   });
 });

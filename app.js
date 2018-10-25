@@ -12,10 +12,12 @@ app.use(morgan('tiny'));
 // Import routes
 const companiesRoutes = require('./routes/companiesRoutes');
 const jobsRoutes = require('./routes/jobsRoutes');
+const usersRoutes = require('./routes/usersRoutes');
 
 // Define route prefixes
 app.use('/companies', companiesRoutes);
 app.use('/jobs', jobsRoutes);
+app.use('/users', usersRoutes);
 
 /** 404 handler */
 

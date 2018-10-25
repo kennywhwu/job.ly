@@ -7,6 +7,7 @@ const Company = require('../../models/companiesModel');
 
 beforeEach(async function() {
   // seed with some data
+  await db.query('DELETE FROM companies');
   await db.query(
     `INSERT INTO companies 
       (handle,
@@ -47,13 +48,13 @@ afterAll(async function() {
 describe('buildQuery()', () => {
   it('should generate a query to return list of company handles and names filtered by passed in parameters', async function() {
     // Test no query string parameters passed
-    expect(await Company.buildQuery({})).toEqual({
+    expect(await Company._buildQuery({})).toEqual({
       query: `SELECT handle, name FROM companies ORDER BY handle`,
       columns: []
     });
     // Test query string parameters passed
     expect(
-      await Company.buildQuery({
+      await Company._buildQuery({
         search: 'ama',
         min_employees: 7000,
         max_employees: 9500
@@ -65,37 +66,41 @@ describe('buildQuery()', () => {
   });
 });
 
-// Test filterAll method returns list of company objects with handle and name
-describe('filterAll()', () => {
+// Test filterAndListCompanies method returns list of company objects with handle and name
+describe('filterAndListCompanies()', () => {
   it('should generate a list of company objects with handle and name', async function() {
     // Test no query string parameters passed
-    expect(await Company.filterAll({})).toEqual([
+    expect(await Company.filterAndListCompanies({})).toEqual([
       { handle: 'AMZN', name: 'Amazon' },
       { handle: 'GOOG', name: 'Google' },
       { handle: 'NFLX', name: 'Netflix' }
     ]);
 
     // Test search query string parameter passed
-    expect(await Company.filterAll({ search: 'goo' })).toEqual([
+    expect(await Company.filterAndListCompanies({ search: 'goo' })).toEqual([
       { handle: 'GOOG', name: 'Google' }
     ]);
 
     // Test min_employees query string parameter passed
-    expect(await Company.filterAll({ min_employees: 6000 })).toEqual([
+    expect(
+      await Company.filterAndListCompanies({ min_employees: 6000 })
+    ).toEqual([
       { handle: 'AMZN', name: 'Amazon' },
       { handle: 'GOOG', name: 'Google' }
     ]);
 
     // Test max_employees query string parameter passed
-    expect(await Company.filterAll({ max_employees: 9500 })).toEqual([
+    expect(
+      await Company.filterAndListCompanies({ max_employees: 9500 })
+    ).toEqual([
       { handle: 'AMZN', name: 'Amazon' },
       { handle: 'NFLX', name: 'Netflix' }
     ]);
 
     // Test all query string parameter passed
     expect(
-      await Company.filterAll({
-        seach: 'a',
+      await Company.filterAndListCompanies({
+        search: 'a',
         min_employees: 6000,
         max_employees: 9500
       })

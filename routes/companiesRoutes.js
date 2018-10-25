@@ -35,8 +35,7 @@ router.get('/', async function(req, res, next) {
 // POST route to add company
 router.post('/', async function(req, res, next) {
   try {
-    const validateResult = validate(req.body, companyCreationSchema);
-    validateInputs(validateResult, next);
+    validateInputs(req.body, companyCreationSchema);
     let result = await Company.create(req.body);
     return res.json({ company: result });
   } catch (error) {
@@ -57,8 +56,7 @@ router.get('/:handle', async function(req, res, next) {
 // PATCH route to update specific company by handle
 router.patch('/:handle', async function(req, res, next) {
   try {
-    const validateResult = validate(req.body, companyUpdateSchema);
-    validateInputs(validateResult, next);
+    validateInputs(req.body, companyUpdateSchema);
     let result = await Company.update(req.params.handle, req.body);
     return res.json({ company: result });
   } catch (error) {

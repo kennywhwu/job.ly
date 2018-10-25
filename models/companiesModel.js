@@ -4,7 +4,7 @@ const partialUpdate = require('../helpers/partialUpdate');
 /** Collection of related methods for companies. */
 
 class Company {
-  // General error handler if identifying company that doesn't exist in database
+  // Error handler if identifying job that doesn't exist in database
   static _404_errorIfNotFound(results) {
     if (results.rows.length === 0) {
       let error = new Error(`Company does not exist`);
@@ -13,29 +13,12 @@ class Company {
     }
   }
 
-  static _404_errorIfUndefined(results) {
-    if (!results) {
-      let error = new Error(`Companies not returned`);
-      error.status = 404;
-      throw error;
-    }
-  }
-  // let company = results.rows[0];
-  // _404_ifUndef(company);
-
-  // static _404_ifUndef(obj) {
-  //   if (!obj)
-  // }
-
   // Build out SQL query depending on which query string parameters are passed in
   static _buildQuery({ search, min_employees, max_employees }) {
     const BASE_QUERY = 'SELECT handle, name FROM companies';
     const ORDER_QUERY = ' ORDER BY handle';
 
     let whereQuery = '';
-    // let searchQuery = '';
-    let minQuery = '';
-    let maxQuery = '';
 
     let idx = 1;
     let columns = [];
@@ -52,13 +35,13 @@ class Company {
       queryArray.push(searchQuery);
     }
     if (min_employees) {
-      minQuery = `num_employees >= $${idx}`;
+      let minQuery = `num_employees >= $${idx}`;
       idx++;
       columns.push(min_employees);
       queryArray.push(minQuery);
     }
     if (max_employees) {
-      maxQuery = `num_employees <= $${idx}`;
+      let maxQuery = `num_employees <= $${idx}`;
       idx++;
       columns.push(max_employees);
       queryArray.push(maxQuery);
@@ -75,7 +58,6 @@ class Company {
   static async filterAndListCompanies(queryObject) {
     const { query, columns } = this._buildQuery(queryObject);
     const companiesResult = await db.query(query, columns);
-    this._404_errorIfUndefined(companiesResult);
     return companiesResult.rows;
   }
 
@@ -111,7 +93,6 @@ class Company {
          logo_url`,
       [handle, name, num_employees, description, logo_url]
     );
-    this._404_errorIfUndefined(result);
     return result.rows[0];
   }
 
@@ -133,6 +114,52 @@ class Company {
     );
     this._404_errorIfNotFound(result);
     return result.rows[0];
+  }
+
+  static async getOne(handle) {
+    const result = await db.query(
+      `SELECT j.id,
+              j.title,
+              j.salary,
+              j.equity,
+              j.date_posted,
+              c.handle,
+              c.name,
+              c.num_employees,
+              c.description,
+              c.logo_url
+        FROM companies c
+        LEFT JOIN jobs j
+          ON c.handle = j.company_handle
+        WHERE c.handle = $1
+      `,
+      [handle]
+    );
+    this._404_errorIfNotFound(result);
+    let { name, num_employees, description, logo_url } = result.rows[0];
+
+    let jobArray;
+    if (result.rows[0].id === null) {
+      jobArray = [];
+    } else {
+      jobArray = result.rows.map(j => ({
+        id: j.id,
+        title: j.title,
+        salary: j.salary,
+        equity: j.equity,
+        date_posted: j.date_posted
+      }));
+    }
+
+    let companyObject = {
+      handle,
+      name,
+      num_employees,
+      description,
+      logo_url,
+      jobs: jobArray
+    };
+    return companyObject;
   }
 
   // Update company information by handle in database, only for columns specified

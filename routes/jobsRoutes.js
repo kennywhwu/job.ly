@@ -4,16 +4,28 @@
 const express = require('express');
 const router = new express.Router();
 const Job = require('../models/jobsModel');
-const { validate } = require('jsonschema');
 const jobCreationSchema = require('../schemas/jobCreationSchema.json');
 const jobUpdateSchema = require('../schemas/jobUpdateSchema.json');
 const validateInputs = require('../helpers/validateInputs');
 
+// function goSayHi(next) {
+//   throw "hi";;
+// }
+
+// router.get('/foo', function(req, res, next) {
+//   try {
+//     goSayHi(next);
+//   console.log('OH NO');
+//   res.json('there');
+//   } catch (err) {
+//     next(err);
+//   }
+// });
+
 // POST route to add job
 router.post('/', async function(req, res, next) {
   try {
-    const validateResult = validate(req.body, jobCreationSchema);
-    validateInputs(validateResult, next);
+    validateInputs(req.body, jobCreationSchema);
     let result = await Job.create(req.body);
     return res.json({ job: result });
   } catch (error) {
@@ -44,8 +56,7 @@ router.get('/:id', async function(req, res, next) {
 // PATCH route to update specific job by id
 router.patch('/:id', async function(req, res, next) {
   try {
-    const validateResult = validate(req.body, jobUpdateSchema);
-    validateInputs(validateResult, next);
+    validateInputs(req.body, jobUpdateSchema);
     let result = await Job.update(req.params.id, req.body);
     return res.json({ job: result });
   } catch (error) {
