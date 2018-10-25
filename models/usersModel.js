@@ -1,7 +1,8 @@
 const db = require('../db');
 const partialUpdate = require('../helpers/partialUpdate');
 const bcrypt = require('bcrypt');
-const { BCRYPT_WORK_ROUNDS } = require('../config');
+const { BCRYPT_WORK_ROUNDS, SECRET } = require('../config');
+const jwt = require('jsonwebtoken');
 
 /** Collection of related methods for companies. */
 
@@ -165,6 +166,42 @@ class User {
     this._404_errorIfNotFound(result);
     return;
   }
+
+  // Check if user exists, and compare stored hashed password with entered hashed password
+  static async authenticate(username, password) {
+    const result = await db.query(
+      'SELECT password, is_admin FROM users WHERE username = $1',
+      [username]
+    );
+    let user = result.rows[0];
+    if (user && (await bcrypt.compare(password, user.password))) {
+      return this.login({ username, is_admin: user.is_admin });
+    }
+    let error = new Error(`Invalid username/password`);
+    error.status = 401;
+    throw error;
+  }
+
+  // Log user in after authenticating
+  static login({ username, is_admin }) {
+    let token = jwt.sign({ username, is_admin }, SECRET, {});
+    return token;
+  }
 }
+
+// router.post('/login', async function(req, res, next) {
+//   try {
+//     let { username, password } = req.body;
+//     if (await User.authenticate(username, password)) {
+//       let token = jwt.sign({ username }, SECRET_KEY, {});
+//       User.updateLoginTimestamp(username);
+//       return res.json({ token });
+//     } else {
+//       throw new Error('Invalid username/password');
+//     }
+//   } catch (err) {
+//     return next(err);
+//   }
+// });
 
 module.exports = User;

@@ -13,11 +13,13 @@ app.use(morgan('tiny'));
 const companiesRoutes = require('./routes/companiesRoutes');
 const jobsRoutes = require('./routes/jobsRoutes');
 const usersRoutes = require('./routes/usersRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 // Define route prefixes
 app.use('/companies', companiesRoutes);
 app.use('/jobs', jobsRoutes);
 app.use('/users', usersRoutes);
+app.use('/login', authRoutes);
 
 /** 404 handler */
 
