@@ -193,7 +193,7 @@ describe('PATCH /users/:username', function() {
 
   // Test updating user with valid username without being logged in as user
   test('Returns error when updating user information by valid username without being logged in as user', async function() {
-    const updatedUser = await request(app)
+    `cons`t updatedUser = await request(app)
       .patch('/users/glenn')
       .send({
         email: 'glenn1@glenn.com'

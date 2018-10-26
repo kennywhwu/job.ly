@@ -6,8 +6,6 @@ const db = require('../../db');
 const request = require('supertest');
 const app = require('../../app');
 const Job = require('../../models/jobsModel');
-const jwt = require('jsonwebtoken');
-const { SECRET } = require('../../config.js');
 let token;
 let adminToken;
 
@@ -269,7 +267,7 @@ describe('PATCH /jobs/:id', function() {
       .patch('/jobs/1')
       .send({
         salary: 8000,
-        _token: token
+        _token: adminToken
       });
 
     // Validate job title remains same, updated field is updated,and status code are expected
@@ -284,7 +282,7 @@ describe('PATCH /jobs/:id', function() {
       .patch('/jobs/5')
       .send({
         salary: 8000,
-        _token: token
+        _token: adminToken
       });
 
     // Validate error message and status code
@@ -297,7 +295,8 @@ describe('PATCH /jobs/:id', function() {
     const invalidJob = await request(app)
       .patch('/jobs/1')
       .send({
-        salary: '8000'
+        salary: '8000',
+        _token: adminToken
       });
 
     // Validate error message and status code
@@ -306,25 +305,55 @@ describe('PATCH /jobs/:id', function() {
     ]);
     expect(invalidJob.statusCode).toBe(400);
   });
+
+  // Test updating job with valid id while NOT logged in
+  test('Update job information by valid id while NOT logged in', async function() {
+    const invalidJob = await request(app)
+      .patch('/jobs/1')
+      .send({
+        salary: 8000
+      });
+
+    // Validate error message and status code
+    expect(invalidJob.body.message).toEqual('Unauthorized');
+    expect(invalidJob.statusCode).toBe(401);
+  });
 });
 
 // Test DELETE request to /jobs/:id
 describe('DELETE /jobs/:id', function() {
-  // Test deleting job with valid id
-  test('Delete job with valid id', async function() {
-    const deletedJob = await request(app).delete('/jobs/1');
+  // Test deleting job with valid id while logged in
+  test('Delete job with valid id while logged in', async function() {
+    const deletedJob = await request(app)
+      .delete('/jobs/1')
+      .send({
+        _token: adminToken
+      });
 
     // Validate delete message and status code
     expect(deletedJob.body.message).toBe('Job deleted! :(');
     expect(deletedJob.statusCode).toBe(200);
   });
 
-  // Test deleting job with invalid id
-  test('Returns error if delete job with nonexistent id', async function() {
-    const invalidJob = await request(app).delete('/jobs/5');
+  // Test deleting job with invalid id while logged in
+  test('Returns error if delete job with nonexistent id while logged in', async function() {
+    const invalidJob = await request(app)
+      .delete('/jobs/5')
+      .send({
+        _token: adminToken
+      });
 
     // Validate error message
     expect(invalidJob.body.message).toBe('Job does not exist');
     expect(invalidJob.statusCode).toBe(404);
+  });
+
+  // Test deleting job with valid id while NOT logged in
+  test('Delete job with valid id while NOT logged in', async function() {
+    const invalidJob = await request(app).delete('/jobs/1');
+
+    // Validate error message
+    expect(invalidJob.body.message).toBe('Unauthorized');
+    expect(invalidJob.statusCode).toBe(401);
   });
 });
