@@ -6,11 +6,16 @@ const db = require('../../db');
 const request = require('supertest');
 const app = require('../../app');
 const Job = require('../../models/jobsModel');
+const jwt = require('jsonwebtoken');
+const { SECRET } = require('../../config.js');
+let token;
+let adminToken;
 
 beforeEach(async function() {
   // seed with some data
   await db.query('DELETE FROM jobs');
   await db.query('DELETE FROM companies');
+  await db.query('DELETE FROM users');
   await db.query(
     `INSERT INTO companies 
       (handle,
@@ -59,12 +64,46 @@ beforeEach(async function() {
       0.005,
       'NFLX')`
   );
+
+  // Register new user to hash password
+  const registeredUser = await request(app)
+    .post('/users')
+    .send({
+      username: 'kenny1',
+      first_name: 'Kenny1',
+      last_name: 'Hwu1',
+      password: 'password1',
+      email: 'kenny1@kenny.com',
+      photo_url: 'http://kenny1.com'
+    });
+  // Set global token for test use
+  token = registeredUser.body.token;
+
+  // Register admin
+  let adminUser = await request(app)
+    .post('/users')
+    .send({
+      username: 'admin',
+      first_name: 'Admin',
+      last_name: 'Istrator',
+      password: 'adminpassword',
+      email: 'admin@admin.com',
+      photo_url: 'http://admin.com'
+    });
+  // Set admin rights in database and log admin in to create token
+  await db.query(`UPDATE users SET is_admin = true WHERE username = 'admin'`);
+  const admin = await request(app)
+    .post('/login')
+    .send({ username: 'admin', password: 'adminpassword' });
+  // Set global admin token for admin privileges when testing
+  adminToken = admin.body.token;
 });
 
 afterEach(async function() {
   // delete seed data
   await db.query('DELETE FROM jobs');
   await db.query('DELETE FROM companies');
+  await db.query('DELETE FROM users');
 });
 
 afterAll(async function() {
@@ -72,11 +111,13 @@ afterAll(async function() {
   await db.end();
 });
 
-// Test GET request to /jobs
-describe('GET /jobs', function() {
+// Test GET request to /jobs while logged in
+describe('GET /jobs while logged in', function() {
   // Test no query strings passed
   test('No query strings returns list of all jobs', async function() {
-    const allJobs = await request(app).get('/jobs');
+    const allJobs = await request(app)
+      .get('/jobs')
+      .send({ _token: token });
 
     // make sure list returns correct number of jobs, title is expected of first, and response code
     expect(allJobs.body.jobs.length).toBe(3);
@@ -84,11 +125,11 @@ describe('GET /jobs', function() {
     expect(allJobs.statusCode).toBe(200);
   });
 
-  // Test all query strings passed and combine to return filtered list of jobs
-  test('All query strings returns combined filtered list of all jobs', async function() {
-    const filteredJobs = await request(app).get(
-      '/jobs?search=back&min_salary=550000&min_equity=0.2'
-    );
+  // Test all query strings passed and combine to return filtered list of jobs while logged in
+  test('All query strings returns combined filtered list of all jobs while logged in', async function() {
+    const filteredJobs = await request(app)
+      .get('/jobs?search=back&min_salary=550000&min_equity=0.2')
+      .send({ _token: token });
 
     // make sure list returns correct number of jobs, title is expected of first, and response code
     expect(filteredJobs.body.jobs.length).toBe(1);
@@ -96,11 +137,11 @@ describe('GET /jobs', function() {
     expect(filteredJobs.statusCode).toBe(200);
   });
 
-  // Test search with query strings passed for jobs that don't exist
-  test('All query strings returns combined filtered list of all jobs', async function() {
-    const filteredJobs = await request(app).get(
-      '/jobs?search=fro&min_salary=1000000&min_equity=0.2'
-    );
+  // Test search with query strings passed for jobs that don't exist while logged in
+  test(`Search for job that doesn't fulfill all requirements in query search parameters while logged in`, async function() {
+    const filteredJobs = await request(app)
+      .get('/jobs?search=fro&min_salary=1000000&min_equity=0.2')
+      .send({ _token: token });
 
     // Validate error message and status code
     expect(filteredJobs.body.message).toEqual('Job does not exist');
@@ -108,17 +149,30 @@ describe('GET /jobs', function() {
   });
 });
 
+// Test GET request to /jobs while NOT logged in
+describe('GET /jobs NOT logged in', function() {
+  // Test no query strings passed
+  test('No query strings returns list of all jobs while NOT logged in', async function() {
+    const allJobs = await request(app).get('/jobs');
+
+    // make sure list returns correct number of jobs, title is expected of first, and response code
+    expect(allJobs.body.message).toBe('Unauthorized');
+    expect(allJobs.statusCode).toBe(401);
+  });
+});
+
 // Test POST request to /jobs
 describe('POST /jobs', function() {
-  // Test posting valid job
-  test('Post with valid job returns all the job information', async function() {
+  // Test posting valid job while logged in
+  test('Post with valid job while logged in returns all the job information', async function() {
     const newJob = await request(app)
       .post('/jobs')
       .send({
         title: 'Software Developer',
         salary: 200000,
         equity: 0.03,
-        company_handle: 'AMZN'
+        company_handle: 'AMZN',
+        _token: adminToken
       });
     // Validate job title and status code are expected
     expect(newJob.body.job.title).toBe('Software Developer');
@@ -126,14 +180,15 @@ describe('POST /jobs', function() {
   });
 
   // Test with invalid fields
-  test('Post with invalid fields returns errors', async function() {
+  test('Post with invalid fields returns error', async function() {
     const invalidJob = await request(app)
       .post('/jobs')
       .send({
         title: 'Software Developer',
         salary: '200000',
         equity: -0.03,
-        company_handle: 'AMZN'
+        company_handle: 'AMZN',
+        _token: adminToken
       });
 
     // Validate error message and status code
@@ -143,101 +198,133 @@ describe('POST /jobs', function() {
     expect(invalidJob.statusCode).toBe(400);
   });
 
-  // Test GET request to /jobs/:id
-  describe('GET /jobs/:id', function() {
-    // Test retrieving job info with valid id
-    test('Retrieve job title and id by valid id', async function() {
-      const specificJob = await request(app).get('/jobs/1');
+  // Test posting valid job while NOT logged in
+  test('Post with valid job while NOT logged in returns error', async function() {
+    const newJob = await request(app)
+      .post('/jobs')
+      .send({
+        title: 'Software Developer',
+        salary: 200000,
+        equity: 0.03,
+        company_handle: 'AMZN'
+      });
+    // Validate job title and status code are expected
+    expect(newJob.body.message).toBe('Unauthorized');
+    expect(newJob.statusCode).toBe(401);
+  });
+});
 
-      // Validate job title and status code are expected
-      expect(specificJob.body.job.title).toBe('Back End');
-      expect(specificJob.statusCode).toBe(200);
-    });
+// Test GET request to /jobs/:id
+describe('GET /jobs/:id', function() {
+  // Test retrieving job info with valid id while logged in
+  test('Retrieve job title and id by valid id while logged in', async function() {
+    const specificJob = await request(app)
+      .get('/jobs/1')
+      .send({ _token: token });
 
-    // Test retrieving job with invalid id integer
-    test('Returns error if retrieve job by nonexisting id', async function() {
-      const invalidJob = await request(app).get('/jobs/5');
-
-      // Validate error message and status code
-      expect(invalidJob.body.message).toBe('Job does not exist');
-      expect(invalidJob.statusCode).toBe(404);
-    });
-
-    // Test retrieving job with non-integer id
-    test('Returns error if retrieve job by nonexisting id', async function() {
-      const invalidJob = await request(app).get('/jobs/AAPL');
-
-      // Validate error message and status code
-      expect(invalidJob.body.message).toBe(
-        'invalid input syntax for integer: "AAPL"'
-      );
-      expect(invalidJob.statusCode).toBe(500);
-    });
+    // Validate job title and status code are expected
+    expect(specificJob.body.job.title).toBe('Back End');
+    expect(specificJob.statusCode).toBe(200);
   });
 
-  // Test PATCH request to /jobs/:id
-  describe('PATCH /jobs/:id', function() {
-    // Test updating job with valid id
-    test('Update job information by valid id', async function() {
-      const updatedJob = await request(app)
-        .patch('/jobs/1')
-        .send({
-          salary: 8000
-        });
+  // Test retrieving job with invalid id integer while logged in
+  test('Returns error if retrieve job by nonexisting id while logged in', async function() {
+    const invalidJob = await request(app)
+      .get('/jobs/5')
+      .send({ _token: token });
 
-      // Validate job title remains same, updated field is updated,and status code are expected
-      expect(updatedJob.body.job.title).toBe('Back End');
-      expect(updatedJob.body.job.salary).toBe(8000);
-      expect(updatedJob.statusCode).toBe(200);
-    });
-
-    // Test updating job with invalid id
-    test('Returns error if update job with nonexisting id', async function() {
-      const invalidJob = await request(app)
-        .patch('/jobs/5')
-        .send({
-          salary: 8000
-        });
-
-      // Validate error message and status code
-      expect(invalidJob.body.message).toBe('Job does not exist');
-      expect(invalidJob.statusCode).toBe(404);
-    });
-
-    // Test updating job with invalid inputs
-    test('Returns error if update existing job with invalid inputs', async function() {
-      const invalidJob = await request(app)
-        .patch('/jobs/1')
-        .send({
-          salary: '8000'
-        });
-
-      // Validate error message and status code
-      expect(invalidJob.body.message).toEqual([
-        'instance.salary is not of a type(s) integer'
-      ]);
-      expect(invalidJob.statusCode).toBe(400);
-    });
+    // Validate error message and status code
+    expect(invalidJob.body.message).toBe('Job does not exist');
+    expect(invalidJob.statusCode).toBe(404);
   });
 
-  // Test DELETE request to /jobs/:id
-  describe('DELETE /jobs/:id', function() {
-    // Test deleting job with valid id
-    test('Delete job with valid id', async function() {
-      const deletedJob = await request(app).delete('/jobs/1');
+  // Test retrieving job with non-integer id while logged in
+  test('Returns error if retrieve job by nonexisting id while logged in', async function() {
+    const invalidJob = await request(app)
+      .get('/jobs/AAPL')
+      .send({ _token: token });
 
-      // Validate delete message and status code
-      expect(deletedJob.body.message).toBe('Job deleted! :(');
-      expect(deletedJob.statusCode).toBe(200);
-    });
+    // Validate error message and status code
+    expect(invalidJob.body.message).toBe(
+      'invalid input syntax for integer: "AAPL"'
+    );
+    expect(invalidJob.statusCode).toBe(500);
+  });
 
-    // Test deleting job with invalid id
-    test('Returns error if delete job with nonexistent id', async function() {
-      const invalidJob = await request(app).delete('/jobs/5');
+  // Test retrieving job info with valid id while NOT logged in
+  test('Retrieve job title and id by valid id while NOT logged in', async function() {
+    const invalidJob = await request(app).get('/jobs/1');
 
-      // Validate error message
-      expect(invalidJob.body.message).toBe('Job does not exist');
-      expect(invalidJob.statusCode).toBe(404);
-    });
+    // Validate error message and status code
+    expect(invalidJob.body.message).toBe('Unauthorized');
+    expect(invalidJob.statusCode).toBe(401);
+  });
+});
+
+// Test PATCH request to /jobs/:id
+describe('PATCH /jobs/:id', function() {
+  // Test updating job with valid id while logged in
+  test('Update job information by valid id while logged in', async function() {
+    const updatedJob = await request(app)
+      .patch('/jobs/1')
+      .send({
+        salary: 8000,
+        _token: token
+      });
+
+    // Validate job title remains same, updated field is updated,and status code are expected
+    expect(updatedJob.body.job.title).toBe('Back End');
+    expect(updatedJob.body.job.salary).toBe(8000);
+    expect(updatedJob.statusCode).toBe(200);
+  });
+
+  // Test updating job with invalid id while logged in
+  test('Returns error if update job with nonexisting id while logged in', async function() {
+    const invalidJob = await request(app)
+      .patch('/jobs/5')
+      .send({
+        salary: 8000,
+        _token: token
+      });
+
+    // Validate error message and status code
+    expect(invalidJob.body.message).toBe('Job does not exist');
+    expect(invalidJob.statusCode).toBe(404);
+  });
+
+  // Test updating job with invalid inputs while logged in
+  test('Returns error if update existing job with invalid inputs while logged in', async function() {
+    const invalidJob = await request(app)
+      .patch('/jobs/1')
+      .send({
+        salary: '8000'
+      });
+
+    // Validate error message and status code
+    expect(invalidJob.body.message).toEqual([
+      'instance.salary is not of a type(s) integer'
+    ]);
+    expect(invalidJob.statusCode).toBe(400);
+  });
+});
+
+// Test DELETE request to /jobs/:id
+describe('DELETE /jobs/:id', function() {
+  // Test deleting job with valid id
+  test('Delete job with valid id', async function() {
+    const deletedJob = await request(app).delete('/jobs/1');
+
+    // Validate delete message and status code
+    expect(deletedJob.body.message).toBe('Job deleted! :(');
+    expect(deletedJob.statusCode).toBe(200);
+  });
+
+  // Test deleting job with invalid id
+  test('Returns error if delete job with nonexistent id', async function() {
+    const invalidJob = await request(app).delete('/jobs/5');
+
+    // Validate error message
+    expect(invalidJob.body.message).toBe('Job does not exist');
+    expect(invalidJob.statusCode).toBe(404);
   });
 });

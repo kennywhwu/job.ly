@@ -1,11 +1,5 @@
 /* Routes for companies */
 
-// function throwAPIError(msg, status = 500) {
-//   let err = new Error(msg);
-//   err.status = status;
-//   throw err;
-// }
-
 // Set-up imports and files
 const express = require('express');
 const router = new express.Router();
@@ -14,9 +8,14 @@ const { validate } = require('jsonschema');
 const companyCreationSchema = require('../schemas/companyCreationSchema.json');
 const companyUpdateSchema = require('../schemas/companyUpdateSchema.json');
 const validateInputs = require('../helpers/validateInputs');
+const {
+  ensureLoggedIn,
+  ensureCorrectUser,
+  ensureIsAdmin
+} = require('../middleware/authMiddleware');
 
 // GET route for companies
-router.get('/', async function(req, res, next) {
+router.get('/', ensureLoggedIn, async function(req, res, next) {
   try {
     if (+req.query.min_employees > +req.query.max_employees) {
       let error = new Error(
@@ -33,7 +32,7 @@ router.get('/', async function(req, res, next) {
 });
 
 // POST route to add company
-router.post('/', async function(req, res, next) {
+router.post('/', ensureIsAdmin, async function(req, res, next) {
   try {
     validateInputs(req.body, companyCreationSchema);
     let result = await Company.create(req.body);
@@ -44,7 +43,7 @@ router.post('/', async function(req, res, next) {
 });
 
 // GET route to retrieve specific company by handle
-router.get('/:handle', async function(req, res, next) {
+router.get('/:handle', ensureLoggedIn, async function(req, res, next) {
   try {
     let result = await Company.getOne(req.params.handle);
     return res.json({ company: result });
@@ -54,7 +53,7 @@ router.get('/:handle', async function(req, res, next) {
 });
 
 // PATCH route to update specific company by handle
-router.patch('/:handle', async function(req, res, next) {
+router.patch('/:handle', ensureIsAdmin, async function(req, res, next) {
   try {
     validateInputs(req.body, companyUpdateSchema);
     let result = await Company.update(req.params.handle, req.body);
@@ -65,7 +64,7 @@ router.patch('/:handle', async function(req, res, next) {
 });
 
 // DELETE route to delete specific company by handle
-router.delete('/:handle', async function(req, res, next) {
+router.delete('/:handle', ensureIsAdmin, async function(req, res, next) {
   try {
     await Company.delete(req.params.handle);
     return res.json({ message: 'Company deleted! :(' });

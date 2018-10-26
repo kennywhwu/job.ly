@@ -7,6 +7,11 @@ const Job = require('../models/jobsModel');
 const jobCreationSchema = require('../schemas/jobCreationSchema.json');
 const jobUpdateSchema = require('../schemas/jobUpdateSchema.json');
 const validateInputs = require('../helpers/validateInputs');
+const {
+  ensureLoggedIn,
+  ensureCorrectUser,
+  ensureIsAdmin
+} = require('../middleware/authMiddleware');
 
 // function goSayHi(next) {
 //   throw "hi";;
@@ -23,7 +28,7 @@ const validateInputs = require('../helpers/validateInputs');
 // });
 
 // POST route to add job
-router.post('/', async function(req, res, next) {
+router.post('/', ensureIsAdmin, async function(req, res, next) {
   try {
     validateInputs(req.body, jobCreationSchema);
     let result = await Job.create(req.body);
@@ -34,7 +39,7 @@ router.post('/', async function(req, res, next) {
 });
 
 // GET route for jobs
-router.get('/', async function(req, res, next) {
+router.get('/', ensureLoggedIn, async function(req, res, next) {
   try {
     let result = await Job.filterAndListJobs(req.query);
     return res.json({ jobs: result });
@@ -44,7 +49,7 @@ router.get('/', async function(req, res, next) {
 });
 
 // GET route to retrieve specific job by id
-router.get('/:id', async function(req, res, next) {
+router.get('/:id', ensureLoggedIn, async function(req, res, next) {
   try {
     let result = await Job.getOne(req.params.id);
     return res.json({ job: result });
@@ -54,7 +59,7 @@ router.get('/:id', async function(req, res, next) {
 });
 
 // PATCH route to update specific job by id
-router.patch('/:id', async function(req, res, next) {
+router.patch('/:id', ensureIsAdmin, async function(req, res, next) {
   try {
     validateInputs(req.body, jobUpdateSchema);
     let result = await Job.update(req.params.id, req.body);
@@ -65,7 +70,7 @@ router.patch('/:id', async function(req, res, next) {
 });
 
 // DELETE route to delete specific job by id
-router.delete('/:id', async function(req, res, next) {
+router.delete('/:id', ensureIsAdmin, async function(req, res, next) {
   try {
     await Job.delete(req.params.id);
     return res.json({ message: 'Job deleted! :(' });

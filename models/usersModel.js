@@ -7,6 +7,24 @@ const jwt = require('jsonwebtoken');
 /** Collection of related methods for companies. */
 
 class User {
+  constructor({
+    username,
+    password,
+    first_name,
+    last_name,
+    email,
+    photo_url,
+    is_admin
+  }) {
+    this.username = username;
+    this.password = password;
+    this.first_name = first_name;
+    this.last_name = last_name;
+    this.email = email;
+    this.photo_url = photo_url;
+    this.is_admin = is_admin;
+  }
+
   // Error handler if identifying user that doesn't exist in database
   static _404_errorIfNotFound(results) {
     if (results.rows.length === 0) {
@@ -45,27 +63,59 @@ class User {
     return userResult.rows;
   }
 
-  // Create method to insert new user into database and return inserted user data
-  // Assume don't want to return password back
-  // ASSUMING CLIENT-FACING; WOULD NEVER ASK IF THEY ARE ADMIN
-  // {
-  //   "username": "glenn",
-  //   "password": "password",
-  //   "first_name": "Glenn",
-  //   "last_name": "Ramel",
-  //   "email": "glenn@glenn.com",
-  //   "photo_url": "http://glenn.com"
+  // // Create method to insert new user into database and return inserted user data
+  // // Assume don't want to return password back
+  // // ASSUMING CLIENT-FACING; WOULD NEVER ASK IF THEY ARE ADMIN
+  // // {
+  // //   "username": "glenn",
+  // //   "password": "password",
+  // //   "first_name": "Glenn",
+  // //   "last_name": "Ramel",
+  // //   "email": "glenn@glenn.com",
+  // //   "photo_url": "http://glenn.com"
+  // // }
+  // // =>
+  // // {
+  // //   "user": {
+  // //     "username": "glenn",
+  // //     "first_name": "Glenn",
+  // //     "last_name": "Ramel",
+  // //     "email": "glenn@glenn.com",
+  // //     "photo_url": "http://glenn.com"
+  // //   }
+  // // }
+  // static async create({
+  //   username,
+  //   password,
+  //   first_name,
+  //   last_name,
+  //   email,
+  //   photo_url
+  // }) {
+  //   let hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_ROUNDS);
+  //   const result = await db.query(
+  //     `INSERT INTO users (
+  //           username,
+  //           password,
+  //           first_name,
+  //           last_name,
+  //           email,
+  //           photo_url)
+  //        VALUES ($1, $2, $3, $4, $5, $6)
+  //        RETURNING username,
+  //           first_name,
+  //           last_name,
+  //           email,
+  //           photo_url`,
+  //     [username, hashedPassword, first_name, last_name, email, photo_url]
+  //   );
+  //   return result.rows[0]; //return new User(username, password, first_name, last_name, email, photo_url)
   // }
-  // =>
-  // {
-  //   "user": {
-  //     "username": "glenn",
-  //     "first_name": "Glenn",
-  //     "last_name": "Ramel",
-  //     "email": "glenn@glenn.com",
-  //     "photo_url": "http://glenn.com"
-  //   }
-  // }
+
+  /////////////////
+  // SMART MODEL //
+  /////////////////
+
   static async create({
     username,
     password,
@@ -85,13 +135,24 @@ class User {
             photo_url) 
          VALUES ($1, $2, $3, $4, $5, $6) 
          RETURNING username,
+            password,
             first_name,
             last_name,
             email,
-            photo_url`,
+            photo_url,
+            is_admin`,
       [username, hashedPassword, first_name, last_name, email, photo_url]
     );
-    return result.rows[0];
+    let u = result.rows[0];
+    return new User(
+      u.username,
+      u.password,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.photo_url,
+      u.is_admin
+    );
   }
 
   // Retrieve user from database by username
@@ -167,15 +228,45 @@ class User {
     return;
   }
 
+  //   // Check if user exists, and compare stored hashed password with entered hashed password
+  //   async authenticate(username, password) {
+  //     const result = await db.query(
+  //       'SELECT password, is_admin FROM users WHERE username = $1',
+  //       [username]
+  //     );
+  //     let user = result.rows[0];
+  //     if (user && (await bcrypt.compare(password, user.password))) {
+  //       return this.login({ username, is_admin: user.is_admin });
+  //     }
+  //     let error = new Error(`Invalid username/password`);
+  //     error.status = 401;
+  //     throw error;
+  //   }
+
+  //   // Log user in after authenticating
+  //   login({ username, is_admin }) {
+  //     let token = jwt.sign({ username, is_admin }, SECRET, {});
+  //     return token;
+  //   }
+  // }
+
+  /////////////////
+  // SMART MODEL //
+  /////////////////
+
   // Check if user exists, and compare stored hashed password with entered hashed password
   static async authenticate(username, password) {
     const result = await db.query(
-      'SELECT password, is_admin FROM users WHERE username = $1',
+      'SELECT username, password, is_admin FROM users WHERE username = $1',
       [username]
     );
     let user = result.rows[0];
     if (user && (await bcrypt.compare(password, user.password))) {
-      return this.login({ username, is_admin: user.is_admin });
+      return new User({
+        username: user.username,
+        password: user.password,
+        is_admin: user.is_admin
+      });
     }
     let error = new Error(`Invalid username/password`);
     error.status = 401;
@@ -183,8 +274,12 @@ class User {
   }
 
   // Log user in after authenticating
-  static login({ username, is_admin }) {
-    let token = jwt.sign({ username, is_admin }, SECRET, {});
+  login() {
+    let token = jwt.sign(
+      { username: this.username, is_admin: this.is_admin },
+      SECRET,
+      {}
+    );
     return token;
   }
 }
