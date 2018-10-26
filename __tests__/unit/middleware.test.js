@@ -135,20 +135,6 @@ describe('ensureCorrectUser()', () => {
 
 /** Middleware: Requires is_admin is true for user. */
 
-// function ensureIsAdmin(req, res, next) {
-//   try {
-//     const token = req.body._token || req.query._token;
-//     const payload = jwt.verify(token, SECRET);
-//     if (payload.is_admin === true) {
-//       return next();
-//     } else {
-//       throw new Error();
-//     }
-//   } catch (err) {
-//     return next({ status: 401, message: 'Unauthorized' });
-//   }
-// }
-
 // Test ensureIsAdmin method
 describe('ensureIsAdmin()', () => {
   it('should return error if not logged in as admin', function() {
